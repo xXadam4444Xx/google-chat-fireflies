@@ -5,8 +5,8 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔁 Replace this with your actual Make.com webhook URL
-const MAKE_WEBHOOK_URL = 'https://hook.eu1.make.com/bddiaye4qahcplznx7e6ja5tygc5qphx';
+// ✅ Replace this with your actual Make.com webhook
+const MAKE_WEBHOOK_URL = 'https://hook.make.com/your-real-webhook-url';
 
 app.use(bodyParser.json());
 
@@ -15,28 +15,54 @@ app.post('/', async (req, res) => {
 
   console.log('Received event:', JSON.stringify(event, null, 2));
 
-  if (event.type === 'MESSAGE') {
+  // Try to extract from different possible structures
+  const message =
+    event.message?.text ||
+    event.chat?.messagePayload?.message?.text ||
+    null;
+
+  const sender =
+    event.message?.sender?.displayName ||
+    event.chat?.messagePayload?.message?.sender?.displayName ||
+    'Unknown';
+
+  const email =
+    event.message?.sender?.email ||
+    event.chat?.messagePayload?.message?.sender?.email ||
+    'Unknown';
+
+  const space =
+    event.space?.displayName ||
+    event.chat?.messagePayload?.space?.displayName ||
+    'Unknown';
+
+  if (message) {
+    // ✅ Debugging log
+    console.log('Sending to Make.com:', { message, sender, email, space });
+
     try {
       await axios.post(MAKE_WEBHOOK_URL, {
-        message: event.message.text,
-        sender: event.message.sender.displayName,
-        email: event.message.sender.email,
-        space: event.space.displayName,
+        message,
+        sender,
+        email,
+        space,
       });
-      console.log('Forwarded to Make.com');
+      console.log('✅ Forwarded to Make.com');
     } catch (error) {
-      console.error('Error forwarding to Make.com:', error.message);
+      console.error('❌ Error forwarding to Make.com:', error.message);
     }
+  } else {
+    console.log('⚠️ No message found in event — skipping.');
   }
 
-  // Google Chat requires a JSON response
+  // Always respond 200 OK
   res.json({ text: 'OK' });
 });
 
 app.get('/', (req, res) => {
-  res.send('Google Chat → Make.com Webhook is live');
+  res.send('Google Chat Bot is running');
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
