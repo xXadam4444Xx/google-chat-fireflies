@@ -15,7 +15,7 @@ app.post('/', async (req, res) => {
 
   console.log('Received event:', JSON.stringify(event, null, 2));
 
-  // ✅ Extract only the actual user message (excluding @mention)
+  // ✅ Extract the actual message content (after the @mention if present)
   const message =
     event.chat?.messagePayload?.message?.argumentText?.trim() ||
     event.message?.text?.trim() ||
@@ -37,14 +37,24 @@ app.post('/', async (req, res) => {
     event.chat?.messagePayload?.space?.displayName ||
     'Unknown';
 
+  const eventTime = event.chat?.eventTime || new Date().toISOString();
+
   if (message) {
-    // ✅ Log what will be sent
-    const payload = { message, sender, email, space };
-    console.log('Sending to Make.com:', payload);
+    // ✅ Send data with field names that Make.com expects
+    const payload = {
+      "Message Text": message,
+      "Sender": sender,
+      "Email": email,
+      "Space": space,
+      "Event Time": eventTime,
+      "Message Type": "MESSAGE"
+    };
+
+    console.log('📤 Sending to Make.com:', payload);
 
     try {
-      await axios.post(MAKE_WEBHOOK_URL, payload);
-      console.log('✅ Forwarded to Make.com');
+      const response = await axios.post(MAKE_WEBHOOK_URL, payload);
+      console.log('✅ Forwarded to Make.com with status:', response.status);
     } catch (error) {
       console.error('❌ Error forwarding to Make.com:', error.message);
       if (error.response) {
@@ -55,8 +65,7 @@ app.post('/', async (req, res) => {
     console.log('⚠️ No message found in event — skipping.');
   }
 
-  // ✅ Always respond to Chat with success
-  res.json({ text: 'OK' });
+  res.json({ text: 'OK' }); // Required by Google Chat
 });
 
 app.get('/', (req, res) => {
