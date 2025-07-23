@@ -5,7 +5,7 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Replace this with your actual Make.com webhook
+// ✅ Your actual Make.com webhook
 const MAKE_WEBHOOK_URL = 'https://hook.eu1.make.com/bddiaye4qahcplznx7e6ja5tygc5qphx';
 
 app.use(bodyParser.json());
@@ -15,10 +15,11 @@ app.post('/', async (req, res) => {
 
   console.log('Received event:', JSON.stringify(event, null, 2));
 
-  // Try to extract from different possible structures
+  // ✅ Extract only the actual user message (excluding @mention)
   const message =
-    event.message?.text ||
-    event.chat?.messagePayload?.message?.text ||
+    event.chat?.messagePayload?.message?.argumentText?.trim() ||
+    event.message?.text?.trim() ||
+    event.chat?.messagePayload?.message?.text?.trim() ||
     null;
 
   const sender =
@@ -37,25 +38,24 @@ app.post('/', async (req, res) => {
     'Unknown';
 
   if (message) {
-    // ✅ Debugging log
-    console.log('Sending to Make.com:', { message, sender, email, space });
+    // ✅ Log what will be sent
+    const payload = { message, sender, email, space };
+    console.log('Sending to Make.com:', payload);
 
     try {
-      await axios.post(MAKE_WEBHOOK_URL, {
-        message,
-        sender,
-        email,
-        space,
-      });
+      await axios.post(MAKE_WEBHOOK_URL, payload);
       console.log('✅ Forwarded to Make.com');
     } catch (error) {
       console.error('❌ Error forwarding to Make.com:', error.message);
+      if (error.response) {
+        console.error('❌ Make.com response:', error.response.data);
+      }
     }
   } else {
     console.log('⚠️ No message found in event — skipping.');
   }
 
-  // Always respond 200 OK
+  // ✅ Always respond to Chat with success
   res.json({ text: 'OK' });
 });
 
